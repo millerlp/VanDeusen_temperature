@@ -9,6 +9,11 @@
  *  display screen. The current csv filename is displayed at the top of the OLED 
  *  screen while running. The values are logged until power is turned off. 
  *  
+ *  Note that there are two arrays below, INFLOWsensorsOffset and OUTFLOWsensorsOffset
+ *  that can hold correction values to be added to each specific sensor's temperature
+ *  value. Confirm that those values are appropriate for your sensors. If no correction
+ *  is needed, enter 0 three times in each array. 
+ *  
  *  Hardware: Arduino UNO, DS3231 real time clock, 128x64 OLED screen, microSD 
  *  breakout board, six MAX31820 OneWire temperature sensors. 
  *  
@@ -23,6 +28,8 @@
 #include "RTClib.h" // https://github.com/millerlp/RTClib
 #include "SSD1306Ascii.h" // https://github.com/greiman/SSD1306Ascii
 #include "SSD1306AsciiWire.h" // https://github.com/greiman/SSD1306Ascii
+
+
 
 
 //******************************************
@@ -71,17 +78,27 @@ double avgOUTFLOWtemp = 0; // Average of MAX31820 sensors on outflow
 // inflow or outflow temperatures. You need to determine the addresses using
 // the MAX18B20_Temperature.ino sketch in the test_sketches directory
 
-// Inflow sensors are tagged with green tape
+// Inflow sensors are tagged with green tape. List the 8-byte hex addresses here
 uint8_t INFLOWsensors[3][8] = {  {0x28, 0x16, 0x95, 0x45, 0xD, 0x0, 0x0, 0xE3},
                                  {0x28, 0x36, 0xB0, 0x45, 0xD, 0x0, 0x0, 0x7F},
                                  {0x28, 0xF4, 0xAC, 0x45, 0xD, 0x0, 0x0, 0xD3}};
+// Define a temperature correction to be ADDED to each raw temperature value
+// The order of values in this array should match the order of sensor addresses
+// in the INFLOWsensors array above. Units here are degrees Celsius.
+double INFLOWsensorsOffset[3] = { 0.5, // first sensor's offset. Enter 0 if no correction is needed
+                                  0.5, // second sensor's offset
+                                  0.5}; // third sensor's offset
                                  
-// Outflow sensors are tagged with orange tape
+// Outflow sensors are tagged with orange tape. List the 8-byte hex addresses here
 uint8_t OUTFLOWsensors[3][8] = { {0x28, 0xAA, 0xAC, 0x45, 0xD, 0x0, 0x0, 0xEE}, 
                                  {0x28, 0xA0, 0xA6, 0x45, 0xD, 0x0, 0x0, 0x9C},
                                  {0x28, 0x5E, 0x9D, 0x45, 0xD, 0x0, 0x0, 0x9}}; 
-
-
+// Define a temperature correction to be ADDED to each raw temperature value
+// The order of values in this array should match the order of sensor addresses
+// in the OUTFLOWsensors array above. Units here are degrees Celsius.
+double OUTFLOWsensorsOffset[3] = { 0.5, // first sensor's offset. Enter 0 if no correction is needed
+                                   0.5, // second sensor's offset
+                                   0.5}; // third sensor's offset
 
 
 
@@ -257,7 +274,10 @@ void loop() {
         for (int n = 0; n < 8; n++){
           addr[n] = INFLOWsensors[i][n];
         }
-        INFLOWtemps[i] = refSensors.getTempC(addr); // query using device address
+        INFLOWtemps[i] = refSensors.getTempC(addr); // query using device address to get temperature
+        // Adjust the raw temperature value by adding on the offset value defined
+        // at the start of the program above
+        INFLOWtemps[i] = INFLOWtemps[i] + INFLOWsensorsOffset[i];
         Serial.print(INFLOWtemps[i],2); Serial.print(", ");
         // Sanity check the recorded temperature
         if ( (INFLOWtemps[i] > -10.0) & (INFLOWtemps[i] < 60.0) ){
@@ -280,7 +300,10 @@ void loop() {
         for (int n = 0; n < 8; n++){
           addr[n] = OUTFLOWsensors[i][n];
         }
-        OUTFLOWtemps[i] = refSensors.getTempC(addr); // query using device address
+        OUTFLOWtemps[i] = refSensors.getTempC(addr); // query using device address to get temperature
+        // Adjust the raw temperature value by adding on the offset value defined
+        // at the start of the program above
+        OUTFLOWtemps[i] = OUTFLOWtemps[i] + OUTFLOWsensorsOffset[i];
         Serial.print(OUTFLOWtemps[i],2); Serial.print(", ");
         // Sanity check the recorded temperature
         if ( (OUTFLOWtemps[i] > -10.0) & (OUTFLOWtemps[i] < 60.0) ){
